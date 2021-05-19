@@ -67,7 +67,7 @@ sig
              'l Foreign.conversion * 'm Foreign.conversion * 'n Foreign.conversion ->
             'o Foreign.conversion -> 'a * 'b * 'c * 'd * 'e * 'f * 'g * 'h * 'i * 'j * 'k * 'l * 'm * 'n -> 'o
             
-    val winAbi: Foreign.LibFFI.abi
+    val winAbi: Foreign.LowLevel.abi
 
     val kernel: string -> Foreign.symbol
     and user: string -> Foreign.symbol
@@ -351,9 +351,9 @@ struct
 
     (* We need to use the Pascal calling convention on 32-bit Windows. *)
     val winAbi =
-        case List.find (fn ("stdcall", _) => true | _ => false) LibFFI.abiList of
+        case List.find (fn ("stdcall", _) => true | _ => false) LowLevel.abiList of
             SOME(_, abi) => abi
-        |   NONE => LibFFI.abiDefault
+        |   NONE => LowLevel.abiDefault
 
     (* As well as setting the abi we can also use the old argument order. *)
     fun winCall0 sym argConv resConv = buildCall0withAbi(winAbi, sym, argConv, resConv)
@@ -922,14 +922,11 @@ struct
     fun cCHARARRAY n : string conversion =
     let
         (* Make it a struct of chars *)
-        val { size=sizeC, align=alignC, ffiType=ffiTypeC } = LowLevel.cTypeChar
+        val { size=sizeC, align=alignC, ... } = LowLevel.cTypeChar
         val arraySize = sizeC * Word.fromInt n
-        fun ffiType () =
-            LibFFI.createFFItype {
-                size = arraySize, align = alignC, typeCode=LibFFI.ffiTypeCodeStruct,
-                elements = List.tabulate (n, fn _ => ffiTypeC()) }
-        val arrayType: LowLevel.ctype =
-            { size = arraySize, align = alignC, ffiType = ffiType }
+        val arrayType: LowLevel.cType =
+            { size = arraySize, align = alignC,
+                typeForm = LowLevel.CTypeStruct(List.tabulate (n, fn _ => LowLevel.cTypeChar)) }
 
         open Memory
 
